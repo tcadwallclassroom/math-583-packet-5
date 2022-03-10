@@ -1,6 +1,8 @@
 library(tidyverse)
 X1976_2020_house <- read_csv("1976-2020-house.csv")
 
+### Tidy the data into a useable format.
+
 house_2012 <- 
   X1976_2020_house %>% 
   filter(year==2012) %>% 
@@ -41,11 +43,17 @@ house_2012_reduced <-
   mutate(pct_dem_votes = dem_votes / total_votes * 100) %>% 
   mutate(pct_rep_votes = rep_votes / total_votes * 100)
 
+### Get the PA house results in another data frame.
+
 house_2012_PA <- house_2012_reduced %>% 
   filter(grepl("PA", dist_id))
 
+### The Median, Mean, and median-mean difference 
+### of the results of the 2012 PA House election:
+
 median_dem_pct_PA <- median(house_2012_PA$pct_dem_votes)
 mean_dem_pct_PA <- mean(house_2012_PA$pct_dem_votes)
+diff_dem_pct_PA <- median_dem_pct_PA - mean_dem_pct_PA
 
 house_2012_PA %>% 
   ggplot(aes(x = pct_dem_votes)) +
@@ -57,6 +65,9 @@ house_2012_PA %>%
   scale_color_manual(name = "Measure",
                      breaks = c("Median", "Mean"),
                      values = c("Median"="red", "Mean"="forestgreen"))
+
+### Estimate the p-value of the 2012 PA Mean-Median difference given the 
+### null hypothesis of diff = 0:
 
 
 data <- house_2012_reduced
