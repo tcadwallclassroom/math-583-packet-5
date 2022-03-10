@@ -179,7 +179,7 @@ Now, let's do this a bunch of times:
 
 8. Create a variable called `simulations` and set it equal to 1000. 
 9. Create a empty numeric vector called `p_hat_results` of size `simulations` 
-10. Put the part of your code that completes steps 4 through 7 into a for loop, that will run parts 4 through 7 `simulations` number of times, and save the results of `p_hat` for each simulation into `p_hat_results`. 
+10. Put your code for steps 5 through 7 into a for loop, so that you will run parts 5 through 7 `simulations` number of times, and save the results of `p_hat` for each simulation into `p_hat_results`. 
 11. Now, turn the vector `p_hat_results` into a data frame called `results` with a single column called `p_hat`.
 9. Create a histogram, with appropriate bin width, of these results. The x-axis should have `p_hat`, the sample proportions, and the y-axis should be the number of simulations. Set the limits of the x-axis as 0 to 1, with breaks every 0.1.
 10. Use R to get the mean and standard deviation of `results$p_hat`.
