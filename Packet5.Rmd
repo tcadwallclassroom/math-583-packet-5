@@ -108,7 +108,16 @@ In modern statistics, we often take a kind of reverse approach: we can run our t
 
 We often say that if our test has a p-value less than 0.05, then the result is *statistically significant*. However, 0.05 is arbitrary, and there may be good reasons for choosing a different cutoff level. It is common to report several "significance levels", or, as recommended recently by the ASA, to simply report the p-value itself. [Link to ASA Statement.](https://www.amstat.org/asa/files/pdfs/P-ValueStatement.pdf)
 
-We can also run simulations, just like we did in the exam: The R code below will simulate 10,000 runs of this test, using the assumption of the null hypothesis. At the end, we can see how many of these simulations have a result at least as extreme as the result of our test: namely, that Sophia guessed 8 cups of coffee correctly. 
+All of this is wrapped up in the R function, `binom.test()`. Try running the following code:
+```{r binom.test, eval = FALSE}
+binom.test(8,10,0.5,alternative = "greater")
+```
+
+Notice the confidence interval -- how is that calculated? This is a complicated question. The `binom.test` function uses something called the *Clopper-Pearson interval*. If the sample is large enough, we can use a normal approximation (which we will do later). 
+
+## Simulation-based p-values
+
+We can also run simulations, just like we did in the exam: The R code below will simulate 10,000 runs of this test, using the assumption of the null hypothesis. At the end, we can see how many of these simulations have a result at least as extreme as the result of our test: namely, that Sophia guessed 8 cups of coffee correctly. This lets us estimate the p-value by running simulations!
 
 ```{r coffee_sim}
 
@@ -146,4 +155,35 @@ p_val
 
 In the code above, we have found `r sims_as_extreme` cases out of 10,000 in which we reject the null hypothesis when, in fact, Sophia only had a 50% chance of guessing correctly. This gives us a p-value of `r p_val` based on these simulations.
 
-What we have just performed is sometimes called a *Monte Carlo* estimate of the p-value. This is really useful for situations where we may not have a convenient probability distribution to work with. 
+What we have just performed is sometimes called a *Monte Carlo* or *simulation-based* estimate of the p-value. This is really useful for situations where we may not have a convenient probability distribution to work with. 
+
+## Point Estimates and Sampling Variance
+
+According to 538, Joe Biden's average approval rating (as of March 10, 2022) is 45.2%. In other words, based on 538's weighting methodology and the results of recent polls, they estimate that 45.2% of American adults approve of Joe Biden's performance as president. For now, let's take this as a *parameter*: the proportion of American adults who approve really is $p = 45.2\%$.
+
+In this section, we want to investigate the question: How close am I likely to be to the true parameter if I poll 100 adults?
+
+Work with a partner to do the following in R:
+
+1. Create a variable called `population_size`, and set it equal to the number of American adults, approximately 259 million.
+2. Create a variable called `p` and set it equal to the parameter, proportion of the population that approves, 0.452.
+3. Create a variable called `sample_size` and set it equal to 100.
+4. Create a vector called `population` of size `population size`, with `population_size * p` entries that read `"approve"` and ``population_size * (1-p)` that read `"not"`.
+5. Create a vector called `sample` that picks `sample_size` items from the `population` vector without replacement.
+6. Use `sum(sample == "approve")` to find the number of people in the sample that approve, save this value as `sample_approve`.
+7. Calculate a variable called `p_hat` that is equal to the proportion of people in the sample that approve.
+
+Once you have code that accomplishes all of the above, save it as an R script, then run it several times. What different values of `p_hat` do you find?
+
+Now, let's do this a bunch of times:
+
+8. Create a variable called `simulations` and set it equal to 1000. 
+9. Create a empty numeric vector called `p_hat_results` of size `simulations` 
+10. Put the part of your code that completes steps 4 through 7 into a for loop, that will run parts 4 through 7 `simulations` number of times, and save the results of `p_hat` for each simulation into `p_hat_results`. 
+11. Now, turn the vector `p_hat_results` into a data frame called `results` with a single column called `p_hat`.
+9. Create a histogram, with appropriate bin width, of these results. The x-axis should have `p_hat`, the sample proportions, and the y-axis should be the number of simulations. Set the limits of the x-axis as 0 to 1, with breaks every 0.1.
+10. Use R to get the mean and standard deviation of `results$p_hat`.
+11. Do the whole thing all over again, but now with `sample_size` set to 400. What changes do you see in your results?
+12. Create several histograms, varying p from 0.10 to 0.90, and using sample sizes of 10, 50, 100, or 250. What trends do you see?
+
+
