@@ -18,9 +18,11 @@ editor_options:
 library(rmdformats)
 library(openintro)
 library(tidyverse)
+library(gghighlight)
 library(formatR)
-knitr::opts_chunk$set(echo = TRUE, cache = TRUE, eval = TRUE)
-knitr::opts_chunk$set(tidy.opts=list(width.cutoff=80),tidy=TRUE)
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE, eval = TRUE, cache.lazy = FALSE)
+knitr::opts_chunk$set(tidy.opts=list(width.cutoff=80),tidy=F)
+options(scipen = 999)
 ```
 
 ## Four-step Statistical Process
@@ -79,7 +81,19 @@ binom_dist <- data.frame(correct = c(0:10), dens = dbinom(0:10,10,0.5))
 
 binom_dist %>% ggplot(aes(x = correct, y = dens)) +
   geom_col(color = "black", fill = "forestgreen") +
-  scale_x_continuous(breaks = c(0:10))
+  scale_x_continuous(breaks = c(0:10)) 
+
+binom_dist %>% ggplot(aes(x = correct, y = dens)) +
+  geom_col(color = "black", fill = "forestgreen") +
+  scale_x_continuous(breaks = c(0:10)) +
+  gghighlight(correct >=8,
+              unhighlighted_params = list(
+                fill = "forestgreen",
+                alpha = 0.25)) +
+  annotate("text", 
+           x = 8:10, 
+           y = dbinom(8:10, 10, 0.5)+0.01,
+           label = round(dbinom(8:10, 10, 0.5),4))
 
 sum(dbinom(c(8:10), 10, 0.5))
 sum(dbinom(c(9:10), 10, 0.5))
@@ -113,7 +127,7 @@ All of this is wrapped up in the R function, `binom.test()`. Try running the fol
 binom.test(8,10,0.5,alternative = "greater")
 ```
 
-Notice the confidence interval -- how is that calculated? This is a complicated question. The `binom.test` function uses something called the *Clopper-Pearson interval*. If the sample is large enough, we can use a normal approximation (which we will do later). 
+Notice the confidence interval -- how is that calculated? This is a complicated question. The `binom.test` function uses something called the *Clopper-Pearson interval*. However, if the sample is large enough, we can use a normal approximation (which we will do later). 
 
 ## Simulation-based p-values
 
@@ -159,14 +173,14 @@ What we have just performed is sometimes called a *Monte Carlo* or *simulation-b
 
 ## Point Estimates and Sampling Variance
 
-According to 538, Joe Biden's average approval rating (as of March 10, 2022) is 45.2%. In other words, based on 538's weighting methodology and the results of recent polls, they estimate that 45.2% of American adults approve of Joe Biden's performance as president. For now, let's take this as a *parameter*: the proportion of American adults who approve really is $p = 45.2\%$.
+According to 538, Joe Biden's average approval rating (as of March 10, 2022) is 42.5%. In other words, based on 538's weighting methodology and the results of recent polls, they estimate that 42.5% of American adults approve of Joe Biden's performance as president. For now, let's take this as a *parameter*: the proportion of American adults who approve really is $p = 0.425$.
 
 In this section, we want to investigate the question: How close am I likely to be to the true parameter if I poll 100 adults?
 
 Work with a partner to do the following in R:
 
 1. Create a variable called `population_size`, and set it equal to the number of American adults, approximately 259 million.
-2. Create a variable called `p` and set it equal to the parameter, proportion of the population that approves, 0.452.
+2. Create a variable called `p` and set it equal to the parameter, proportion of the population that approves, 0.425.
 3. Create a variable called `sample_size` and set it equal to 100.
 4. Create a vector called `population` of size `population size`, with `population_size * p` entries that read `"approve"` and ``population_size * (1-p)` that read `"not"`.
 5. Create a vector called `sample` that picks `sample_size` items from the `population` vector without replacement.
@@ -186,4 +200,165 @@ Now, let's do this a bunch of times:
 11. Do the whole thing all over again, but now with `sample_size` set to 400. What changes do you see in your results?
 12. Create several histograms, varying p from 0.10 to 0.90, and using sample sizes of 10, 50, 100, or 250. What trends do you see?
 
+It appears as though the *sample proportion*, $\hat{p}$, is normally distributed. In fact, this is exactly the point of the *central limit theorem*. Before we use the central limit theorem, though, let's go back to a hypothesis test using randomization:
 
+A recent (March 14, 2022) poll conducted by Schoen Cooperman Research surveyed 800 American adults, and found that 45% approved of Joe Biden's performance. Is there sufficient evidence to conclude that more than 42.5% of American adults approve of Joe Biden's performance?
+
+In this case, our null hypothesis is that the approval rate is still $p=0.425$:
+
+\begin{align*}
+H_0: p &= 0.425 \\
+H_A: p &> 0.425
+\end{align*}
+
+```{r sim}
+population_size <- 259000000
+p <- 0.425
+x <- 0.45
+sample_size <- 800
+
+population <- c(rep("approve",population_size * p),
+                rep("not",population_size * (1-p)))
+
+simulations <- 100000
+p_hat_results <- numeric(simulations)
+for (i in 1:simulations) {
+  sample <- sample(population, sample_size)
+  sample_approve <- sum(sample == "approve")
+  p_hat <- sample_approve / sample_size
+  p_hat_results[i] <- p_hat
+}
+results <- data.frame(p_hat = p_hat_results)
+
+results %>% ggplot(aes(x = p_hat)) +
+  geom_histogram(color = "black", fill = "forestgreen", binwidth = 0.00125, center = p) +
+  geom_vline(aes(xintercept = x), linetype = "dashed", color = "firebrick") +
+  labs(
+    title = "Distribution of Sampled Approval Rates",
+    subtitle = paste("Using", simulations, "simulated sample proportions with p = ", p),
+    x = "Sample proportion",
+    y = "Number of simulations"
+  ) +
+  scale_x_continuous(limits = c(0.30,0.55), breaks = seq(0.35,0.50,0.05)) +
+  gghighlight(p_hat >= x,
+              unhighlighted_params = list(
+                fill = "forestgreen",
+                alpha = 0.25))
+
+p_value <- sum(results$p_hat >= x)/simulations
+p_value
+
+```
+
+
+## The Central Limit Theorem (for proportions)
+
+If the sample size is large enough, then the sample proportion will tend to follow a normal distribution with 
+\[\mu_{\hat{p}}=p \text{ and } SE_{\hat{p}} = \sqrt{\frac{p(1-p)}{n}}.\]
+"Large enough" is determined by the *success-failure* conditions: \[np \ge 10 \text{ and } n(1-p)\ge 10.\]
+
+(In practice, when we don't know $p$, we substitute our sample proportion, $\hat{p}$, instead.)
+
+This allows us to use a normal distribution directly in a hypothesis test. Let's look at the same example as before:
+
+A recent (March 14, 2022) poll conducted by Schoen Cooperman Research surveyed 800 American adults, and found that 45% approved of Joe Biden's performance. Is there sufficient evidence to conclude that more than 42.5% of American adults approve of Joe Biden's performance?
+
+As a reminder, our null hypothesis is that the approval rate is still $p=0.425$:
+
+
+\begin{align*}
+H_0: p &= 0.425 \\
+H_A: p &> 0.425
+\end{align*}
+
+We can calculate a $z-score$ for the observed sample: the z-score is the number of standard errors above (or below, in the case of a negative z-score) the mean. Based on the central limit theorem, the sample proportion $\hat{p}$ is normally distributed with a mean of $p = 0.425$ and standard error $SE = \sqrt{\frac{0.425(1-0.425)}{800}}$ -- as long as the success-failure conditions are met! (In this case, $0.425*800$ and $(1-0.425)*800$ are both greater than 10, so the success-failure conditions have been met.)
+
+```{r hyp test}
+n = 800
+p = 0.425
+se = sqrt(p*(1-p)/n)
+x = 0.45
+z = (x-p)/se
+```
+
+What does this z-score tell us? What we really want to know is what percentage of the normal distribution lies below this z-score: that tells us the probability of finding a result at least this extreme given the null hypothesis -- in other words, the p-value!
+
+```{r normtail}
+normTail(p, se, U = x, col = "forestgreen")
+```
+
+We can calculate this probability using the `pnorm` function:
+
+```{r pnorm}
+p_value <- pnorm(x, p, se, lower.tail = F)
+p_value
+### Or, a normalized version:
+p_value <- pnorm(z, 0, 1, lower.tail = F)
+p_value
+```
+
+Therefore, our p-value is approximately `r p_value`. Alternatively, if you want to go the other direction, and compute a critical value based on $\alpha=0.05$, you can use the qnorm function:
+
+```{r qnorm}
+qnorm(0.05, p, se, lower.tail = F)
+```
+
+We can also use a built-in R function:
+```{r proptest}
+prop.test(x = 0.45*800, n = 800, p = 0.425, 
+          alternative = "greater", correct = F)
+binom.test(x = 0.45*800, n = 800, p = 0.425, 
+          alternative = "greater")
+```
+
+
+## Summary
+
+The main idea I want to get across is that there are at least 3 ways to run a hypothesis test: 
+
+1. Simulation-based tests
+2. Critical value (based on a known probability distribution
+3. P-value (based on a known probability distribution)
+
+In R, a simulation-based test has a lot of advantages. A critical value can be calculated using `q` functions (like `qnorm` or `qbinom`), while a p-value can be found with `p` functions like `pnorm` or `pbinom`. 
+
+## To Turn In
+
+On March 15, 2021, Germany suspended the use of the AstraZenica COVID-19 vaccine due to concerns that it may cause cerebral venous sinus thrombosis (CVST), a rare form of blood clot in the brain.
+
+The initial concern was raised when 7 cases of CVST, all occurring within a month after vaccination, were reported to Germany's regulatory agency, the Paul-Ehrlich-Institute (PEI). At the time, Germany had administered 1.6 million does of the AstraZenica COVID-19 vaccine.
+
+The decision to suspend the distribution of the AstraZenica vaccine has been widely criticized. Much of that criticism has come from comparisons to the rate of CVST in the general population. However, that rate is difficult to measure:
+
+The "official" estimate is that CVST affects 2-5 adults per million per year. However, recent studies say this is likely an underestimate, and that the true rate may be as high as 15.7 per million per year. Turning this into a per-month estimate is a little tricky: CVST is correlated with infections, which occur more often in winter months like February and March. (See <https://www.dw.com/en/astrazeneca-whats-the-deal-with-thrombosis/a-56901525> for more.) 
+
+Let's guesstimate the true rate of CVST for the time period of February 15-March 15 as \[\frac{10}{1,000,000}*\frac{2}{12}=\frac{1}{600,000}.\] I started with a mid-range estimate of 10 cases of CVST per million, divided by 12 months, times 2 to estimate that CVST is more likely to occur during winter than during summer. As a decimal, this rate is $0.0000016666...$
+
+1. Calculate the rate of CVST (per million) among the 1.6 million adults who received the AstraZenica vaccine in one month in Germany. Does this appear to be higher than $0.000001666...$?
+
+We want to test the hypothesis:
+
+\begin{align*}
+H_0: p &= 0.0000016667 \\
+H_A: p &> 0.0000016667
+\end{align*}
+
+Our observed data is the 7 cases of CVST in 1.6 million German adults.
+
+2. Check the success-failure conditions. Would it be appropriate to use a normal approximation test? Why or why not?
+
+3. Use `qbinom` to find a critical value for our test at the $\alpha = 0.05$ level, and `pbinom` to find the p-value of our data. Then, run a `binom.test` of our hypothesis. What p-value do you get?
+
+4. Run a simulation-based test. The population of Germany is approximately 54.4 million; find the probability that a randomly-selected sample of 1.6 million would have 7 or more cases of CVST, assuming the null hypotheses. Include a histogram, highlighting the region with 7 or more cases of CVST in the sample.
+
+5. What conclusions can you draw? Do you agree with the German government's decision to suspend the use of the AstraZenica vaccine?
+
+6. What flawed assumptions might we be making in the design of our hypothesis test?
+
+## Reading Assignment
+
+Read [How Eugenics Shaped Statistics](https://nautil.us/how-eugenics-shaped-statistics-9365/), by Aubrey Clayton. Write a short (2-3 paragraphs) reaction to this piece. As part of this reaction, you might consider questions like:
+
+* Can we separate statistical methods from the people who created them?
+* Should we abandon the notion of statistical significance?
+* What does it really mean to be objective as a researcher?
