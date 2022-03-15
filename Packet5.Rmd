@@ -139,9 +139,13 @@ simulations <- 10000    ### Number of simulated tests
 num_cups <- 10          ### Number of cups of coffee per test
 prob_correct <- .5      ### Probability that Sophia guesses correctly per cup
 
-results <- numeric(simulations)
+
 outcomes <- c("Correct", "Incorrect")
 prob_vector <- c(prob_correct, 1 - prob_correct)
+
+### Old version:
+
+results <- numeric(simulations)
 
 for(i in 1:simulations){
   num_correct <- 0 ### Keep track of the number of correct guesses per simulation
@@ -156,9 +160,23 @@ for(i in 1:simulations){
 
 results <- data.frame(results)
 colnames(results) <- "correct"
+
+### Alternative version, 3/15/2022
+
+guess_correct <- numeric(simulations)
+
+for(i in 1:simulations){
+    guess <- sample(outcomes, 10, prob = prob_vector, replace = T)
+    guess_correct[i] <- sum(guess == "Correct")
+  }
+results <- data.frame(guess_correct)
+colnames(results) <- "correct"
+
+###
+
 glimpse(results)
 
-results_table <- results %>% table()
+results_table <- results$correct %>% table()
 results_table
 
 sims_as_extreme <- results %>% filter(correct >= 8) %>% nrow()
