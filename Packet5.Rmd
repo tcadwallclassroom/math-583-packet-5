@@ -20,7 +20,7 @@ library(openintro)
 library(tidyverse)
 library(gghighlight)
 library(formatR)
-knitr::opts_chunk$set(echo = TRUE, cache = TRUE, eval = TRUE, cache.lazy = FALSE)
+knitr::opts_chunk$set(echo = T, cache = T, eval = T, cache.lazy = F, warning = F)
 knitr::opts_chunk$set(tidy.opts=list(width.cutoff=80),tidy=F)
 options(scipen = 999)
 ```
@@ -332,13 +332,217 @@ binom.test(x = 0.45*800, n = 800, p = 0.425,
 
 ## Summary
 
-The main idea I want to get across is that there are at least 3 ways to run a hypothesis test: 
+We have talked about two ways to do a single proportion test: the normal single proportion test and the exact binomial test.
 
-1. Simulation-based tests
-2. Critical value (based on a known probability distribution
-3. P-value (based on a known probability distribution)
+For each test, there are at least 3 ways to get a p-value:
 
-In R, a simulation-based test has a lot of advantages. A critical value can be calculated using `q` functions (like `qnorm` or `qbinom`), while a p-value can be found with `p` functions like `pnorm` or `pbinom`. 
+1. Built-in "official" R functions
+2. Using a known statistic/distribution and its associated formulas
+3. Running simulations
+
+Let's summarize these with one more example. Load the `openintro` package, and examine the data set `gss2010`. One of the variables is called `grass`, which asks respondents whether or not they think the use of marijuana should be made legal. Before continuing, make a guess: do you think the majority opinion is "legal", or "not legal"?
+
+```{r gss2010}
+library(openintro)
+# glimpse(gss2010)
+gss2010_grass <- gss2010 %>% drop_na(grass)
+table(gss2010_grass$grass)
+```
+
+Is there enough evidence to conclude (at $\alpha = 0.05$) that a minority of Americans (in 2010) believed that the use of marijuana should be made legal?
+
+### Using the normal single proportion test
+
+1. Using R functions
+
+```{r RFunctions}
+x <- sum(gss2010_grass$grass == "LEGAL")
+n <- sum(gss2010_grass$grass == "LEGAL")+sum(gss2010_grass$grass == "NOT LEGAL")
+p <- 0.50
+
+prop.test(x, n, p, correct = F, alternative = "less")
+
+### We can also run two-tailed tests:
+prop.test(x, n, p, correct = F, alternative = "two.sided")
+```
+
+2. Using Statistical Formulas
+
+I'll also include some visualizations here, these are typically included in textbooks to help understand the ideas.
+
+```{r Formulas, warning = FALSE}
+
+x <- sum(gss2010_grass$grass == "LEGAL")
+n <- sum(gss2010_grass$grass == "LEGAL")+sum(gss2010_grass$grass == "NOT LEGAL")
+p <- 0.50
+
+p_hat <- x/n
+se <- sqrt(p*(1-p)/n)
+z <- (p_hat-p)/se
+
+
+pnorm(p_hat, p, se)
+normTail(p, se, L = p_hat, col = "forestgreen")
+```
+
+3. Using simulations
+
+```{r simulations}
+
+### A simulated normal approximation (DO NOT ACTUALLY DO THIS)
+
+x <- sum(gss2010_grass$grass == "LEGAL")
+n <- sum(gss2010_grass$grass == "LEGAL")+sum(gss2010_grass$grass == "NOT LEGAL")
+p <- 0.50
+
+p_hat <- x/n
+se <- sqrt(p*(1-p)/n)
+z <- (p_hat-p)/se
+
+simulations <- 100000
+z_legal <- numeric(simulations)
+
+for(i in 1:simulations){
+  z_legal[i] <- rnorm(1,0,1)
+}
+
+### Alternative: z_legal <- rnorm(simulations,0,1)
+
+results <- data.frame(z_legal = z_legal)
+
+# glimpse(results)
+
+sims_as_extreme <- results %>% filter(z_legal <= z) %>% nrow()
+sims_as_extreme
+p_val <- sims_as_extreme/simulations
+p_val
+
+results %>% ggplot(aes(x = z_legal)) +
+  geom_histogram(color = "black", fill = "forestgreen", binwidth = 0.05) +
+  scale_x_continuous(limits = c(-3.5,3.5)) +
+  gghighlight(z_legal <= z,
+              unhighlighted_params = list(
+                fill = "forestgreen",
+                alpha = 0.25))
+
+```
+
+### Exact Binomial Test
+
+1. Using R functions
+
+
+```{r binomtestsum}
+x <- sum(gss2010_grass$grass == "LEGAL")
+n <- sum(gss2010_grass$grass == "LEGAL")+sum(gss2010_grass$grass == "NOT LEGAL")
+p <- 0.50
+
+binom.test(x, n, p, alternative = "less")
+
+### We can also run two-tailed tests:
+binom.test(x, n, p, alternative = "two.sided")
+```
+
+2. Using Statistical Formulas
+
+```{r mybinomsum}
+x <- sum(gss2010_grass$grass == "LEGAL")
+n <- sum(gss2010_grass$grass == "LEGAL")+sum(gss2010_grass$grass == "NOT LEGAL")
+p <- 0.50
+
+my.binom <- function(success,total,prob = 0.5) {
+  choose(total,success)*prob^success*(1-prob)^(total-success)
+}
+
+sum(my.binom(0:x,n,p))
+sum(dbinom(0:x,n,p))
+pbinom(x,n,p)
+
+binom_dist <- data.frame(legal = c(0:n), probs = dbinom(0:n,n,0.5))
+binom_dist %>% ggplot(aes(x = legal, y = probs)) +
+  geom_col(color = "black", fill = "forestgreen") +
+  scale_x_continuous(limits = c(round(.45*n),round(.55*n))) +
+  gghighlight(legal <=x,
+              unhighlighted_params = list(
+                fill = "forestgreen",
+                alpha = 0.25)) 
+```
+
+3. Using simulations
+
+```{r binomtestsimssum}
+
+### Binomial Simulation
+
+x <- sum(gss2010_grass$grass == "LEGAL")
+n <- sum(gss2010_grass$grass == "LEGAL")+sum(gss2010_grass$grass == "NOT LEGAL")
+p <- 0.50
+
+prob_vector <- c(p,1-p)
+outcomes <- c("LEGAL", "NOT LEGAL")
+simulations <- 100000
+
+num_legal <- numeric(simulations)
+
+for(i in 1:simulations){
+  response <- sample(outcomes, n, prob = prob_vector, replace = T)
+  num_legal[i] <- sum(response == "LEGAL") 
+}
+### Alternative: num_legal <- rbinom(simulations, n, p)
+
+results <- data.frame(legal = num_legal)
+
+glimpse(results)
+
+sims_as_extreme <- results %>% filter(legal <= x) %>% nrow()
+sims_as_extreme
+p_val <- sims_as_extreme/simulations
+p_val
+
+results %>% ggplot(aes(x = legal)) +
+  geom_bar(color = "black", fill = "forestgreen") +
+  scale_x_continuous(limits = c(round(.45*n),round(.55*n))) +
+  gghighlight(legal <=x,
+              unhighlighted_params = list(
+                fill = "forestgreen",
+                alpha = 0.25))
+
+### Using a finite population without replacement
+
+x <- sum(gss2010_grass$grass == "LEGAL")
+n <- sum(gss2010_grass$grass == "LEGAL")+sum(gss2010_grass$grass == "NOT LEGAL")
+p <- 0.50
+
+prob_vector <- c(p,1-p)
+population_size = 259000000
+outcomes <- c(rep("LEGAL", p*population_size), rep("NOT LEGAL", (1-p)*population_size))
+simulations <- 100000
+
+num_legal <- numeric(simulations)
+
+for(i in 1:simulations){
+  response <- sample(outcomes, n)
+  num_legal[i] <- sum(response == "LEGAL")
+}
+results <- data.frame(legal = num_legal)
+
+glimpse(results)
+
+sims_as_extreme <- results %>% filter(legal <= x) %>% nrow()
+sims_as_extreme
+p_val <- sims_as_extreme/simulations
+p_val
+
+results %>% ggplot(aes(x = legal)) +
+  geom_bar(color = "black", fill = "forestgreen") +
+  scale_x_continuous(limits = c(round(.45*n),round(.55*n))) +
+  gghighlight(legal <=x,
+              unhighlighted_params = list(
+                fill = "forestgreen",
+                alpha = 0.25))
+```
+
+What are the pros and cons of each of these methods? Which one is the "best" method?
 
 ## To Turn In
 
