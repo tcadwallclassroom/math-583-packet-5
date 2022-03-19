@@ -45,4 +45,9 @@ results %>% ggplot(aes(x = p_hat)) +
     y = "Density"
   ) +
   scale_x_continuous(limits = c(0.00,1.00), breaks = seq(0.00,1.00,0.10)) +
-  stat_function(fun = dnorm, args = list(mean = mean(results$p_hat), sd = sd(results$p_hat)))
+  stat_function(fun = dnorm, args = list(mean = mean(results$p_hat), sd = sd(results$p_hat))) +
+  gghighlight(p_hat >= .5,
+              unhighlighted_params = list(
+                fill = "forestgreen",
+                alpha = 0.25))
+
