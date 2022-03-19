@@ -516,7 +516,7 @@ p <- 0.50
 prob_vector <- c(p,1-p)
 population_size = 259000000
 outcomes <- c(rep("LEGAL", p*population_size), rep("NOT LEGAL", (1-p)*population_size))
-simulations <- 100000
+simulations <- 1000000
 
 num_legal <- numeric(simulations)
 
